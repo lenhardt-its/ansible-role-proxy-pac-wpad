@@ -1,0 +1,9 @@
+---
+- name: reload consul
+  systemd:
+    name: consul
+    state: reloaded
+  become: true
+  tags:
+    - pac
+    - consul

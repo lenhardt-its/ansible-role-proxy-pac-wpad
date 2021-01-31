@@ -1,0 +1,67 @@
+---
+- name: copy scripts to script dir
+  template:
+    src: "{{ item }}"
+    dest: "{{ pac_script_dir }}/{{ item }}"
+    mode: 0755
+    owner: root
+    group: root
+  with_items:
+    - generate_pac.sh
+  become: true
+  tags: pac
+
+- name: create cronjobs under /etc/cron.d
+  cron:
+    name: "{{ item.name }}"
+    minute: "{{ item.minute }}"
+    hour: "{{ item.hour }}"
+    user: root
+    job: "{{ item.job }}"
+    cron_file: "{{ item.cron_file }}"
+  with_items:
+    - name: "Generate Proxy Pac"
+      job: "{{ pac_script_dir }}/generate_pac.sh o365 2>&1 | /usr/bin/logger -t proxy_scripts"
+      cron_file: "generate_proxy_pac"
+      hour: 22
+      minute: 15
+
+- name: create empty pac file
+  copy:
+    content: "# ansible managed file"
+    dest: "{{ pac_webroot }}/proxy.pac"
+    force: no
+    owner: "{{ pac_caddy_user }}"
+    group: "{{ pac_caddy_group }}"
+    mode: 0644
+  become: true
+  tags: pac
+
+- name: create symbolic link for wpad.dat to proxy.pac
+  file:
+    src: "{{ pac_webroot }}/proxy.pac"
+    path: "{{ pac_webroot }}/wpad.dat"
+    owner: "{{ pac_caddy_user }}"
+    group: "{{ pac_caddy_group }}"
+    state: link
+  become: true
+  tags: pac
+
+- name: generate proxy.pac
+  command: "{{ pac_script_dir }}/generate_pac.sh o365"
+  become: true
+  tags: pac
+
+- name: configure consul services
+  template:
+    src: consul.service.json.j2
+    dest: "/etc/consul.d/{{ item.id }}.json"
+    owner: consul
+    group: consul
+    mode: 0644
+  with_items: "{{ consul_service_config }}"
+  notify: reload consul
+  become: true
+  tags:
+    - pac
+    - consul

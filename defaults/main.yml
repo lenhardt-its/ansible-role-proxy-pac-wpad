@@ -1,0 +1,68 @@
+---
+pac_caddy_user: caddy
+pac_caddy_group: caddy
+pac_webroot: /var/www
+pac_file_save_path: /var/www/proxy.pac
+pac_file_proxys:
+  - name: proxy-internal
+    address: "192.168.1.10:3128"
+  - name: proxy-external
+    address: "192.168.2.10:3128"
+pac_file_rules:
+  # Go direct for defines networks
+  - name: '\"169.254.0.0\", \"255.255.0.0\"'
+    type: "isInNet"
+    return: direct
+  - name: '\"172.16.0.0\", \"255.240.0.0\"'
+    type: "isInNet"
+    return: direct
+  - name: '\"192.168.0.0\", \"255.255.0.0\"'
+    type: "isInNet"
+    return: direct
+  - name: '\"10.60.0.0\", \"255.252.0.0\"'
+    type: "isInNet"
+    return: direct
+  - name: '\"10.201.0.0\", \"255.255.0.0\"'
+    type: "isInNet"
+    return: direct
+  - name: '\"fe80:*\"'
+    type: "shExpMatch"
+    return: direct
+  - name: '\"fc00:*\"'
+    type: "shExpMatch"
+    return: direct
+  # Go over proxy-internal for intranet
+  - name: '\"company.lan\"'
+    type: "shExpMatch"
+    return: proxy-internal
+  # Go over proxy-external for others
+  - name: '\"vimeo.com\"'
+    type: "shExpMatch"
+    return: proxy-external
+  - name: '\"*.vimeo.com\"'
+    type: "shExpMatch"
+    return: proxy-external
+  - name: '\"github.com\"'
+    type: "shExpMatch"
+    return: proxy-external
+
+# Configure single Consul service
+consul_service_config:
+  - id: "pac_{{ ansible_hostname }}.{{ ansible_domain }}"
+    name: "monitoring-blackbox_exporter"
+    port: "{{ caddy_default_http_port }}"
+    address: "{{ ansible_hostname }}.{{ ansible_domain }}/proxy.pac"
+    meta:
+      __param_module: "http_basic"
+      __scheme__: "http"
+      __metrics_path__: "/probe"
+      environment: "{{ ansible_environment }}"
+      product: "{{ ansible_product }}"
+      owner_email: "{{ ansible_contact_mail }}"
+      owner_jira: "{{ ansible_contact_jira }}"
+      alert_scc: "{{ ansible_alert_scc | string | lower }}"
+    check:
+      args: ["curl","-s","-L","-o","/dev/null","-w","%{http_code}","-LI","localhost:{{ caddy_default_http_port }}/proxy.pac"]
+      interval: "60s"
+      timeout: "10s"
+    tags: ["prometheus","metrics","endpoint"]
