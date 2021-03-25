@@ -1,0 +1,26 @@
+---
+galaxy_info:
+  author: Dominik Lenhardt
+  description: Ansible role for installing and configuring proxy pac-file
+  license: "MIT"
+  min_ansible_version: 3
+  platforms:
+    - name: EL
+      versions:
+        - all
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - xenial
+        - bionic
+        - focal
+  galaxy_tags:
+  - system
+  - network
+  - linux
+  - proxy
+  - pac
+  - wpad
+dependencies: []
